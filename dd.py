@@ -1,36 +1,25 @@
 import requests
+import socks
+import socket
 import os
 from bs4 import BeautifulSoup
 import datetime
 import socket
-import getmac
-
+#import getmac
+import tldextract as tld
 #from urllib.request import urlopen
+import time
 
 proxies = {
-    'http': 'socks5://127.0.0.1:9050',
-    'https': 'socks5://127.0.0.1:9050',
+    'http': 'socks5h://127.0.0.1:9150',
+    'https': 'socks5h://127.0.0.1:9150'
 }
 
 
 class crawler:
         
     def web_parser(url, res):
-        
-        #parse html code
-        html = res.text
-        parse = BeautifulSoup(html, 'html.parser')
-        
-        if 'https://' in url:
-            savename = url.replace('https://','')
-        elif 'http://' in url:
-            savename = url.replace('https://','')
 
-        #convert html code to a html file
-        f=open("./web/"+savename+".html", 'a+') 
-        f.write(parse)
-        f.close()
-        print("Parse Success ! -->", url)
 
         return 
     
@@ -76,35 +65,34 @@ class crawler:
     #def find_url(path):
 
 if __name__=="__main__":
-    url = 'https://naver.com'
+    #url = ['http://zqktlwi4fecvo6ri.onion/wiki/index.php/Main_Page', 'http://thehiddenwiki.org/']
+    url = 'http://thehiddenwiki.org/'
+    disasm_url = tld.extract(url)
+    response = requests.get(url, proxies=proxies)
 
-    #crawler.get_url(url)
-
-    path = './test/test.txt'
-
-    f = open(path)
-
-    urls = f.readlines()
-
-    for i in range(0, len(urls)):
-        if urls[i] != '':
-            try:
-                print(urls[i], ': ', requests.get(urls[i]))
-            except:
-                pass
-    #print(urls[0], ': ', requests.get(urls[0]))
+    #extract new domain
+    soup = BeautifulSoup(response.text, 'html.parser')
+    b=soup.find_all('a', href=True)
+    for a in soup.find_all('a', href=True):
+        if int('.onion' in a['href']) & int(disasm_url.domain not in a['href']) & int('http' in a['href']) :
+            #print(a['href'])
+            start = time.time()
+            print(a['href'],':',requests.get(a['href'], proxies=proxies))
+            print("time :", time.time() - start)
 
 
+'''    for i in range(len(url)):
+        response = requests.get(url[i], proxies=proxies)
+        print(url[i], ': ', response)
 
+        soup = BeautifulSoup(response.text, 'html.parser')
+        links = soup.find_all('a')
+        print(type(response.text))
 
-
-
-'''
-    if res.status_code == 200:
-        print("hi")
-        crawler.web_parser(url, res)
-    '''
-
-''' def __init__(self):
-self.url = ''
-self.res = requests.get(self.url, proxies=proxies)'''
+        #save as a file
+        extract = tld.extract(url[i])
+        path = "{}.{}".format(extract.domain, extract.suffix)
+        path = os.getcwd() + '/web/' + path
+        #f = open(path, 'a+', encoding='utf8')
+        #f.write(response.text)
+        #f.close()'''
