@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import datetime
 import tldextract as tld
 import time
-from db import domain
+from db import DB_Handler
 from pymongo import MongoClient
 
 proxies = {
@@ -12,11 +12,7 @@ proxies = {
     'https': 'socks5h://127.0.0.1:9150'
 }
 
-DB_Client = MongoClient("mongodb://localhost:27017/")
-DB = DB_Client["DBtest100"]
-
-def web_parser(url, res):
-    # 수정하기 : 파일 이름 도메인 + 서픽스로 하지 말고 http://만 빼고 다 작성하기 -> 모든 페이지 대상
+def web_parser(url, res, hDB):
     # save html code as a file
     # name 변수 정규식으로 걸러내기
     try:
@@ -25,9 +21,6 @@ def web_parser(url, res):
         print('web_parser error :{}, url:'.format(e, url))
         return
 
-    #extract = tld.extract(url)
-    #name = "{}.{}".format(extract.domain, extract.suffix)
-
     path = os.getcwd() + '\\web\\' + name
     with open(path, 'w', encoding='utf8') as f:
         try:
@@ -35,66 +28,72 @@ def web_parser(url, res):
             f.write(res.text)
         except Exception as e:
             print("FILE CREATE ERROR -> ", e)
+
+            return
     print("Web Parse Success -> ", url)
     return
 
-def get_url(res, cDB):
+def get_url(res, hDB):
     # extract new domain in a website
     soup = BeautifulSoup(res.text, 'html.parser')
     for a in soup.find_all('a', href=True):
+        lnk = a['href']
+        if lnk[-1] != '/':
+            lnk = lnk + '/'
 
-        if int('.onion' in a['href']) & int('http' in a['href']):
-            if cDB.is_exist_domain(a['href']):
-                if cDB.is_exist_url([a['href']]):
+        if int('.onion' in lnk) & int('http' in lnk):
+            if hDB.is_exist_domain(lnk):
+                if hDB.is_exist_url(lnk):
                     continue
                 else:
-                    cDB.insert_domain_info(a['href'])
-
+                    #print("insert domain_info : {}".format(lnk))
+                    hDB.insert_domain_info(lnk)
             else:
-                cDB.insert_domains(a['href'])
-                cDB.insert_domain_info(a['href'])
+                #print("insert domains/domain_info :{}".format(lnk))
+                hDB.insert_domains(lnk)
+                hDB.insert_domain_info(lnk)
     return
 
-#def find_url(path):
-
 def run():
-    cDB = domain()
+    hDB = DB_Handler()
 
     WholeCnt = 0
     while(1):
-
         log = 'URL 수집 시작 {}회\t {} \n'.format(WholeCnt, datetime.datetime.now())
         print(log)
-        cDB.insert_log(log)
+        hDB.insert_log(WholeCnt+1)
 
         urllist = []
-        for url in DB['domain_info'].find({"label": 0}, {"_id": 0, "url": 1}):
+        for url in hDB.DB['domain_info'].find({"label": 0}, {"_id": 0, "url": 1}):
             raw = list(url.values())[0]
             urllist.append(raw)
 
         for url in urllist:
+            #print("len of domain : {}".format(len(tld.extract(url).domain)))
+            url = url.replace("http//", "")
+
+            #한번 더 테스트
+            if (len(tld.extract(url).domain) != 16) and (len(tld.extract(url).domain) != 56):
+                hDB.insert_bad_url(url, "DomainError", 1)
+                print("domain error", len(tld.extract(url).domain) , tld.extract(url).domain)
+
             #url get 요청 보내기
             try:
-                res = requests.get(url, proxies=proxies, timeout=10)
+                res = requests.get(url, proxies=proxies, timeout=8)
             except Exception as e:
                 print("Request Timeout   -> ", url)
-                cDB.label_update(url)
-                cDB.insert_bad_url(url, "Timeout")
+                hDB.insert_bad_url(url, "Timeout", 2)
                 continue
 
             #정상 응답일 경우 해당 url의 html code 및 추가 url 파싱
             if res.status_code == 200:
-                web_parser(url, res)
-                get_url(res, cDB)
-                cDB.label_update(url)
-                continue
-
+                web_parser(url, res, hDB)
+                get_url(res, hDB)
+                hDB.label_update(url)
             else:
             #200이 아닐 경우 bat_status.txt에 url과 응답 번호 저장
-                print("response status code is not 200: {} -> {}".format(url, res.status_code))
-                cDB.insert_status_code(url, res.status_code)
-                cDB.label_update(url)
-                continue
+                print("status code is not 200: {} -> {}".format(url, res.status_code))
+                hDB.insert_bad_url(url, "status_code", res.status_code)
 
         print("URL 수집 완료\t", datetime.datetime.now())
         WholeCnt += 1
@@ -102,4 +101,8 @@ def run():
     return
 
 if __name__=="__main__":
+    hDB = DB_Handler()
+    url = "http://dirnxxdraygbifgc.onion/"
+    hDB.insert_domain_info(url)
+    hDB.insert_domains(url)
     run()
