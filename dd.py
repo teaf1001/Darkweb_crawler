@@ -93,10 +93,12 @@ def run():
             #서픽스 검사
             if tld.extract(url).suffix != 'onion':
                 hDB.insert_bad_url(url, "Suffix Error", 0)
+                hDB.label_update(url)
                 continue
             #혹시 모를 디버깅
             if (len(tld.extract(url).domain) != 16) and (len(tld.extract(url).domain) != 56):
                 hDB.insert_bad_url(url, "Domain Error", 1)
+                hDB.label_update(url)
                 print("Domain Error", len(tld.extract(url).domain) , tld.extract(url).domain, url)
                 continue
             #중복 검사
@@ -105,15 +107,22 @@ def run():
 
             #url에 get 요청 보내기
             try:
-                res = requests.get(url, proxies=proxies, timeout=8)
+                res = requests.get(url, proxies=proxies, timeout=5)
             except Exception as e:
                 #print("Request Timeout   -> ", url)
                 hDB.insert_bad_url(url, "Timeout", 2)
+                hDB.label_update(url)
                 continue
             #정상 응답일 경우 해당 url의 html code 및 추가 url 파싱
             if res.status_code == 200:
                 web_parser(url, res, hDB)
-                nurl = list(get_url(res, hDB))
+
+                try:
+                    nurl = list(get_url(res, hDB))
+                except Exception as e:
+                    print("bs4 error :{}".format(e))
+                    continue
+
                 hDB.label_update(url)
                 _new_url[0] += nurl[0]
                 _new_url[1] += nurl[1]
