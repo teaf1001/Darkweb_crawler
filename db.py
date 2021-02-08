@@ -7,7 +7,8 @@ class DB_Handler:
     def __init__(self):
         self.cause = ''
         self.DB_Client = MongoClient("mongodb://localhost:27017/")
-        self.DB = self.DB_Client["d114"]
+        self.dbname = "d127"
+        self.DB = self.DB_Client[self.dbname]
 
     def insert_domains(self, url):
         extract = tld.extract(url)

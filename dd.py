@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import datetime
 import tldextract as tld
 from db import DB_Handler
+import time
 
 proxies = {
     'http': 'socks5h://127.0.0.1:9150',
@@ -20,14 +21,16 @@ def web_parser(url, res, hDB):
         return
 
     path = os.getcwd() + '\\web\\' + name
-    with open(path, 'w', encoding='utf8') as f:
-        try:
-            f.write(url + '\n')
-            f.write(res.text)
-        except Exception as e:
-            print("FILE CREATE ERROR -> ", e)
-            return
-
+    try:
+        with open(path, 'w', encoding='utf8') as f:
+            try:
+                f.write(url + '\n')
+                f.write(res.text)
+            except Exception as e:
+                print("FILE CREATE ERROR -> ", e)
+                return
+    except:
+        return
     #print("Web Parse Success -> ", url)
     return
 
@@ -71,7 +74,7 @@ def get_url(res, hDB):
 def run():
     hDB = DB_Handler()
     print(hDB.DB)
-
+    timeout = 4
     WholeCnt = 1
     while(1):
         log = 'URL 수집 {}회 시작\t\t\t\t\t{}'.format(WholeCnt, datetime.datetime.now())
@@ -105,16 +108,22 @@ def run():
             if hDB.is_exist_url(url, 'Bad_Url'):
                 continue
 
+            start = time.time()
+
             #url에 get 요청 보내기
             try:
                 res = requests.get(url, proxies=proxies, timeout=5)
             except Exception as e:
                 #print("Request Timeout   -> ", url)
-                hDB.insert_bad_url(url, "Timeout", 2)
+                hDB.insert_bad_url(url, "Timeout", timeout)
                 hDB.label_update(url)
                 continue
             #정상 응답일 경우 해당 url의 html code 및 추가 url 파싱
             if res.status_code == 200:
+                end = time.time() - start
+                with open('time_{}.txt'.format(hDB.dbname), 'a+')as f:
+                    f.write(str(end) + '\n')
+
                 web_parser(url, res, hDB)
 
                 try:
