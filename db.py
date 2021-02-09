@@ -5,18 +5,24 @@ import datetime
 class DB_Handler:
 
     def __init__(self):
-        self.cause = ''
         self.DB_Client = MongoClient("mongodb://localhost:27017/")
-        self.dbname = "d127"
+        self.dbname = "d16"
         self.DB = self.DB_Client[self.dbname]
 
-    def insert_domains(self, url):
-        extract = tld.extract(url)
-        collection = self.DB['Domains']
-        post = {
-            "Domain": extract.domain
-        }
-        collection.insert_one(post)
+    def insert_domain(self, url):
+        if not self.is_exist_url(url, 'Domain'):
+            extract = tld.extract(url)
+            collection = self.DB['Domain']
+            post = {
+                "Domain": extract.domain
+            }
+            collection.insert_one(post)
+            self.insert_domain_info(url)
+            return 1
+        elif not self.is_exist_url(url, 'Domain_Info'):
+            self.insert_domain_info(url)
+            return 2
+
 
     def insert_domain_info(self, url):
         extract = tld.extract(url)
@@ -37,7 +43,6 @@ class DB_Handler:
         collection.insert_one(post)
 
     def insert_bad_url(self, url, cause, status_code):
-        self.cause = cause
         collection = self.DB["Bad_Url"]
         if cause == 'Status_Code':
             post = {
@@ -73,8 +78,7 @@ class DB_Handler:
             collection.insert_one(post)
 
     def is_exist_url(self, url, collection):
-
-        if collection == 'Domains':
+        if collection == 'Domain':
             collection = self.DB[collection]
             extract = tld.extract(url)
             if str(collection.find_one({"Domain": extract.domain})) != "None":
@@ -91,7 +95,6 @@ class DB_Handler:
         else:
             print("is_exist_url Unexpected Result-: Url:{}".format(url), collection)
             return
-
 
     def label_update(self, url):
         self.DB['Domain_Info'].update_many({"Url": url}, {"$set": {"Label": 1}})

@@ -55,26 +55,18 @@ def get_url(res, hDB):
             pass
         #서픽스, 프로토콜 검사
         if (tld.extract(lnk).suffix == 'onion') and ('http' in lnk):
-            if hDB.is_exist_url(lnk, 'Domains'):
-                if hDB.is_exist_url(lnk, 'Domain_Info'):
-                    continue
-                else:
-                    #print("insert domain_info : {}".format(lnk))
-                    hDB.insert_domain_info(lnk)
-                    new_url += 1
-            else:
-                #print("insert domains/domain_info :{}".format(lnk))
-                hDB.insert_domains(lnk)
-                hDB.insert_domain_info(lnk)
+            if hDB.insert_domain(lnk) == 1:
                 new_domain += 1
                 new_url += 1
-    #print("get_url:{},{}".format(new_domain,new_url))
+            else:
+                new_url += 1
+
     return new_domain, new_url
 
 def run():
     hDB = DB_Handler()
     print(hDB.DB)
-    timeout = 4
+    timeout = 5
     WholeCnt = 1
     while(1):
         log = 'URL 수집 {}회 시작\t\t\t\t\t{}'.format(WholeCnt, datetime.datetime.now())
@@ -112,11 +104,11 @@ def run():
 
             #url에 get 요청 보내기
             try:
+                hDB.label_update(url)
                 res = requests.get(url, proxies=proxies, timeout=5)
             except Exception as e:
                 #print("Request Timeout   -> ", url)
                 hDB.insert_bad_url(url, "Timeout", timeout)
-                hDB.label_update(url)
                 continue
             #정상 응답일 경우 해당 url의 html code 및 추가 url 파싱
             if res.status_code == 200:
@@ -132,7 +124,6 @@ def run():
                     print("bs4 error :{}".format(e))
                     continue
 
-                hDB.label_update(url)
                 _new_url[0] += nurl[0]
                 _new_url[1] += nurl[1]
             else:
@@ -144,11 +135,10 @@ def run():
 
         hDB.insert_log(-1, _new_url)
         WholeCnt += 1
-    return
 
 if __name__ == "__main__":
     hDB = DB_Handler()
-    url = "http://dirnxxdraygbifgc.onion/"
-    hDB.insert_domain_info(url)
-    hDB.insert_domains(url)
+    url = ["http://dirnxxdraygbifgc.onion/", 'http://wikitjerrta4qgz4.onion/', 'http://torlinkbgs6aabns.onion/']
+    for i in url :
+        hDB.insert_domain(i)
     run()
