@@ -6,7 +6,7 @@ class DB_Handler:
 
     def __init__(self):
         self.DB_Client = MongoClient("mongodb://localhost:27017/")
-        self.dbname = "d16"
+        self.dbname = "d25"
         self.DB = self.DB_Client[self.dbname]
 
     def insert_domain(self, url):
