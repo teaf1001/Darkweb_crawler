@@ -23,7 +23,10 @@ if __name__=='__main__':
         soup = BeautifulSoup(res.text, 'html.parser')
 
         for a in soup.find_all('a', href=True):
+
             href = str(a['href'])
+            print(href)
+
             start = href.find('http://')
             if start < 0:
                 continue

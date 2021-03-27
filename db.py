@@ -6,7 +6,7 @@ class DB_Handler:
 
     def __init__(self):
         self.DB_Client = MongoClient("mongodb://localhost:27017/")
-        self.dbname = "d25"
+        self.dbname = "da14"
         self.DB = self.DB_Client[self.dbname]
 
     def insert_domain(self, url):
@@ -32,18 +32,21 @@ class DB_Handler:
                 "Url": url,
                 "Domain": extract.domain,
                 "Sub_domain": extract.subdomain,
-                "Label": 0
+                "Label": 0,
+                "Res_Code": 0
             }
         else:
             post = {
                 "Url": url,
                 "Domain": extract.domain,
-                "Label": 0
+                "Label": 0,
+                "Res_Code": 0
             }
         collection.insert_one(post)
 
     def insert_bad_url(self, url, cause, status_code):
         collection = self.DB["Bad_Url"]
+        self.res_code_update(url, 'none')
         if cause == 'Status_Code':
             post = {
                 "Url": url,
@@ -51,14 +54,12 @@ class DB_Handler:
                 'Status_Code': status_code
             }
             collection.insert_one(post)
-            self.label_update(url)
         else:
             post = {
                 "Url": url,
                 'Cause': cause,
             }
             collection.insert_one(post)
-            self.label_update(url)
 
     def insert_log(self, cnt, new_url_tuple):
         collection = self.DB["Log"]
@@ -95,6 +96,10 @@ class DB_Handler:
         else:
             print("is_exist_url Unexpected Result-: Url:{}".format(url), collection)
             return
+
+    def res_code_update(self, url, res_code):
+        self.DB['Domain_Info'].update_many({"Url": url}, {"$set": {"Res_Code": res_code}})
+        return
 
     def label_update(self, url):
         self.DB['Domain_Info'].update_many({"Url": url}, {"$set": {"Label": 1}})
